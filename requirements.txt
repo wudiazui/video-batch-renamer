@@ -1,0 +1,6 @@
+# 运行本工具无需任何第三方依赖（仅使用 Python 3.10+ 标准库，含 tkinter）。
+#
+# 仅在需要把源码打包成 EXE 时，才安装 PyInstaller：
+#     pip install pyinstaller
+# 然后运行：
+#     powershell -ExecutionPolicy Bypass -File .\build_exe.ps1

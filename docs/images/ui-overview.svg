@@ -1,0 +1,128 @@
+<svg viewBox="0 0 940 690" xmlns="http://www.w3.org/2000/svg" font-family="Microsoft YaHei UI, Segoe UI, sans-serif">
+  <!-- window -->
+  <rect x="8" y="8" width="924" height="674" rx="12" fill="#eef1f6" stroke="#c2c8d4"/>
+  <rect x="8" y="8" width="924" height="36" rx="12" fill="#2d6cdf"/>
+  <rect x="8" y="26" width="924" height="18" fill="#2d6cdf"/>
+  <text x="26" y="32" font-size="14.5" font-weight="bold" fill="#ffffff">视频批量重命名工具</text>
+
+  <!-- ============ Section 1: folders ============ -->
+  <rect x="24" y="58" width="892" height="120" rx="8" fill="#ffffff" stroke="#c8ccd4"/>
+  <circle cx="44" cy="82" r="12" fill="#2d6cdf"/>
+  <text x="44" y="87" font-size="13" font-weight="bold" fill="#ffffff" text-anchor="middle">1</text>
+  <text x="64" y="87" font-size="14.5" font-weight="bold" fill="#1f2a44">选择要处理的文件夹（可添加多个）</text>
+  <text x="900" y="87" font-size="12" fill="#555" text-anchor="end">共 2 个文件夹，20 个视频</text>
+
+  <!-- buttons -->
+  <g>
+    <rect x="40" y="100" width="96" height="28" rx="5" fill="#eef1f6" stroke="#b9c0cc"/>
+    <text x="88" y="119" font-size="12.5" fill="#2a3142" text-anchor="middle">添加文件夹</text>
+    <rect x="144" y="100" width="80" height="28" rx="5" fill="#eef1f6" stroke="#b9c0cc"/>
+    <text x="184" y="119" font-size="12.5" fill="#2a3142" text-anchor="middle">移除选中</text>
+    <rect x="232" y="100" width="80" height="28" rx="5" fill="#eef1f6" stroke="#b9c0cc"/>
+    <text x="272" y="119" font-size="12.5" fill="#2a3142" text-anchor="middle">清空列表</text>
+    <rect x="320" y="100" width="80" height="28" rx="5" fill="#eef1f6" stroke="#b9c0cc"/>
+    <text x="360" y="119" font-size="12.5" fill="#2a3142" text-anchor="middle">使用说明</text>
+  </g>
+  <!-- folder list -->
+  <rect x="40" y="136" width="860" height="34" rx="4" fill="#fbfcfe" stroke="#d3d8e1"/>
+  <text x="50" y="152" font-size="12" fill="#333">D:\剧集\甜蜜暴击　　（12 个视频）</text>
+  <text x="50" y="166" font-size="12" fill="#333">D:\剧集\隐秘的角落　　（8 个视频）</text>
+
+  <!-- ============ Section 2: naming ============ -->
+  <rect x="24" y="190" width="892" height="116" rx="8" fill="#ffffff" stroke="#c8ccd4"/>
+  <circle cx="44" cy="214" r="12" fill="#2d6cdf"/>
+  <text x="44" y="219" font-size="13" font-weight="bold" fill="#ffffff" text-anchor="middle">2</text>
+  <text x="64" y="219" font-size="14.5" font-weight="bold" fill="#1f2a44">命名设置</text>
+
+  <!-- row a: sequential -->
+  <text x="44" y="247" font-size="13" fill="#1f2a44">◉ 连续编号</text>
+  <text x="150" y="247" font-size="12.5" fill="#444">起始数字</text>
+  <rect x="212" y="235" width="56" height="22" rx="4" fill="#fff" stroke="#cfd5de"/>
+  <text x="220" y="250" font-size="12" fill="#333">1</text>
+  <rect x="300" y="237" width="16" height="16" rx="3" fill="#fff" stroke="#9aa3b2"/>
+  <text x="324" y="249" font-size="12.5" fill="#444">跨文件夹连续编号</text>
+
+  <!-- row b: episode -->
+  <text x="44" y="277" font-size="13" fill="#1f2a44">○ 识别集数</text>
+  <text x="150" y="277" font-size="12.5" fill="#444">剧名</text>
+  <rect x="190" y="265" width="150" height="22" rx="4" fill="#fff" stroke="#cfd5de"/>
+  <text x="198" y="280" font-size="12" fill="#999">（连续编号模式下不可填）</text>
+
+  <!-- row c: padding/template/case -->
+  <text x="150" y="300" font-size="12.5" fill="#444">补零</text>
+  <rect x="190" y="289" width="48" height="20" rx="4" fill="#fff" stroke="#cfd5de"/>
+  <text x="198" y="303" font-size="12" fill="#333">1 ▾</text>
+  <text x="262" y="300" font-size="12.5" fill="#444">模板</text>
+  <rect x="300" y="289" width="170" height="20" rx="4" fill="#fff" stroke="#cfd5de"/>
+  <text x="308" y="303" font-size="12" fill="#333">{number} ▾</text>
+  <rect x="500" y="291" width="16" height="16" rx="3" fill="#fff" stroke="#9aa3b2"/>
+  <text x="524" y="303" font-size="12.5" fill="#444">保持扩展名大小写</text>
+
+  <!-- ============ action bar ============ -->
+  <rect x="40" y="320" width="86" height="30" rx="5" fill="#eef1f6" stroke="#b9c0cc"/>
+  <text x="83" y="340" font-size="12.5" fill="#2a3142" text-anchor="middle">生成预览</text>
+  <rect x="134" y="320" width="116" height="30" rx="5" fill="#2d6cdf"/>
+  <text x="192" y="340" font-size="12.5" font-weight="bold" fill="#ffffff" text-anchor="middle">确认执行改名</text>
+  <rect x="258" y="320" width="80" height="30" rx="5" fill="#eef1f6" stroke="#b9c0cc"/>
+  <text x="298" y="340" font-size="12.5" fill="#2a3142" text-anchor="middle">清空预览</text>
+  <rect x="364" y="320" width="108" height="30" rx="5" fill="#eef1f6" stroke="#b9c0cc"/>
+  <text x="418" y="340" font-size="12.5" fill="#2a3142" text-anchor="middle">撤销最近一次</text>
+  <rect x="480" y="320" width="108" height="30" rx="5" fill="#eef1f6" stroke="#b9c0cc"/>
+  <text x="534" y="340" font-size="12.5" fill="#2a3142" text-anchor="middle">选择日志撤销</text>
+  <text x="620" y="340" font-size="12.5" fill="#444">筛选</text>
+  <rect x="654" y="322" width="76" height="26" rx="4" fill="#fff" stroke="#cfd5de"/>
+  <text x="662" y="340" font-size="12" fill="#333">全部 ▾</text>
+  <text x="900" y="340" font-size="12" fill="#1a7f37" text-anchor="end">预览完成：2 个文件夹，20 个视频可执行。</text>
+
+  <!-- hint line -->
+  <text x="40" y="372" font-size="12" fill="#b00020">提示：有文件识别不出集数 → 改用“连续编号”模式，或确认文件名里有 01、第1集 这样的标记。</text>
+
+  <!-- progress -->
+  <rect x="40" y="384" width="700" height="14" rx="7" fill="#e3e6ec"/>
+  <rect x="40" y="384" width="430" height="14" rx="7" fill="#2d6cdf"/>
+  <text x="900" y="396" font-size="12" fill="#555" text-anchor="end">写入：甜蜜暴击-第1集.mp4</text>
+
+  <!-- ============ Section 3: preview ============ -->
+  <rect x="24" y="412" width="892" height="258" rx="8" fill="#ffffff" stroke="#c8ccd4"/>
+  <circle cx="44" cy="436" r="12" fill="#2d6cdf"/>
+  <text x="44" y="441" font-size="13" font-weight="bold" fill="#ffffff" text-anchor="middle">3</text>
+  <text x="64" y="441" font-size="14.5" font-weight="bold" fill="#1f2a44">预览清单（确认无误后再执行）</text>
+
+  <!-- table header -->
+  <rect x="40" y="454" width="860" height="28" fill="#f0f3f8" stroke="#d3d8e1"/>
+  <text x="52" y="472" font-size="12" font-weight="bold" fill="#33405a">文件夹</text>
+  <text x="170" y="472" font-size="12" font-weight="bold" fill="#33405a">原文件名</text>
+  <text x="360" y="472" font-size="12" font-weight="bold" fill="#33405a">新文件名 ▲</text>
+  <text x="600" y="472" font-size="12" font-weight="bold" fill="#33405a">集</text>
+  <text x="680" y="472" font-size="12" font-weight="bold" fill="#33405a">状态</text>
+
+  <!-- ok rows -->
+  <rect x="40" y="482" width="860" height="26" fill="#ffffff" stroke="#eef0f4"/>
+  <text x="52" y="499" font-size="11.5" fill="#1a7f37">甜蜜暴击</text>
+  <text x="170" y="499" font-size="11.5" fill="#1a7f37">第一集.mp4</text>
+  <text x="360" y="499" font-size="11.5" fill="#1a7f37">甜蜜暴击-第1集.mp4</text>
+  <text x="600" y="499" font-size="11.5" fill="#1a7f37">1</text>
+  <text x="680" y="499" font-size="11.5" fill="#1a7f37">准备就绪</text>
+
+  <rect x="40" y="508" width="860" height="26" fill="#ffffff" stroke="#eef0f4"/>
+  <text x="52" y="525" font-size="11.5" fill="#1a7f37">甜蜜暴击</text>
+  <text x="170" y="525" font-size="11.5" fill="#1a7f37">第02集.mp4</text>
+  <text x="360" y="525" font-size="11.5" fill="#1a7f37">甜蜜暴击-第2集.mp4</text>
+  <text x="600" y="525" font-size="11.5" fill="#1a7f37">2</text>
+  <text x="680" y="525" font-size="11.5" fill="#1a7f37">准备就绪</text>
+
+  <!-- error row -->
+  <rect x="40" y="534" width="860" height="26" fill="#fdecea" stroke="#f6d4d0"/>
+  <text x="52" y="551" font-size="11.5" fill="#b00020">隐秘的角落</text>
+  <text x="170" y="551" font-size="11.5" fill="#b00020">花絮.mp4</text>
+  <text x="360" y="551" font-size="11.5" fill="#b00020">花絮.mp4</text>
+  <text x="600" y="551" font-size="11.5" fill="#b00020">—</text>
+  <text x="680" y="551" font-size="11.5" fill="#b00020">无法识别集数</text>
+
+  <!-- legend -->
+  <rect x="52" y="588" width="16" height="12" fill="#ffffff" stroke="#c8ccd4"/>
+  <text x="76" y="598" font-size="11.5" fill="#1a7f37">绿色 = 准备就绪，可执行</text>
+  <rect x="280" y="588" width="16" height="12" fill="#fdecea" stroke="#f6d4d0"/>
+  <text x="304" y="598" font-size="11.5" fill="#b00020">红色 = 有错误，需先处理（执行键会变灰）</text>
+  <text x="52" y="624" font-size="11.5" fill="#6b7280">点击表头可排序；把鼠标停在按钮上会显示提示气泡；在文件夹列表里双击可在资源管理器中打开。</text>
+</svg>
