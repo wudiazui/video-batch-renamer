@@ -1,0 +1,12 @@
+# 自动规范化文本文件的换行符（消除 add 时的 LF/CRLF 警告）
+* text=auto
+
+# Windows 脚本保持 CRLF 换行
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+
+# 这些按文本处理
+*.py   text
+*.md   text
+*.txt  text
+*.svg  text
