@@ -93,6 +93,14 @@ def _read_success_rows(log_path: Path) -> list[dict[str, str]]:
     return [row for row in rows if row.get("status") == "success"]
 
 
+def _paths_same(a: Path, b: Path) -> bool:
+    """两个路径是否指向同一文件（忽略大小写 / 8.3 短名等差异）。"""
+    try:
+        return a.resolve() == b.resolve()
+    except OSError:
+        return str(a).casefold() == str(b).casefold()
+
+
 def build_undo_plan(log_path: str | Path) -> UndoPlan:
     path = Path(log_path)
     errors: list[str] = []
@@ -111,7 +119,8 @@ def build_undo_plan(log_path: str | Path) -> UndoPlan:
         status = READY_STATUS
         if not source.exists():
             status = "当前文件不存在"
-        elif target.exists():
+        elif target.exists() and not _paths_same(source, target):
+            # 改名是空操作（新名==原名）时 target 就是 source 自己，不算冲突。
             status = "目标已存在"
         items.append(UndoItem(old_path=source, new_path=target, status=status))
 
@@ -139,7 +148,8 @@ def execute_undo_plan(plan: UndoPlan) -> UndoResult:
     errors: list[str] = []
     try:
         for item in plan.items:
-            move_no_overwrite(item.old_path, item.new_path)
+            if not _paths_same(item.old_path, item.new_path):
+                move_no_overwrite(item.old_path, item.new_path)
             completed.append(item)
     except Exception as exc:
         errors.append(f"撤销失败：{exc}")

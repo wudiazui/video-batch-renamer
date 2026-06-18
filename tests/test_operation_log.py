@@ -93,6 +93,24 @@ class OperationLogTests(unittest.TestCase):
             self.assertEqual(target.read_bytes(), b"original", "已存在的目标不能被覆盖")
             self.assertTrue(other.exists(), "拒绝移动后源文件应保留")
 
+    def test_undo_handles_noop_rename(self):
+        # 文件已叫 第1集.mp4，识别集数后新名仍是 第1集.mp4（空操作）；
+        # 撤销不应被“目标已存在”误卡（曾是 bug，由端到端测试发现）。
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            touch(root / "第1集.mp4")  # 改名后是它自己（空操作）
+            touch(root / "nested" / "花絮第2集.mp4")  # → 第2集.mp4（真实移动）
+
+            result = execute_rename_plan(build_rename_plan(root, RenameOptions(mode="episode")))
+            self.assertTrue(result.success)
+
+            undo_plan = build_undo_plan(result.log_path)
+            self.assertTrue(undo_plan.can_execute, "空操作行不应误标“目标已存在”")
+            undo_result = execute_undo_plan(undo_plan)
+            self.assertTrue(undo_result.success)
+            self.assertTrue((root / "第1集.mp4").exists())
+            self.assertTrue((root / "nested" / "花絮第2集.mp4").exists())
+
 
 if __name__ == "__main__":
     unittest.main()
