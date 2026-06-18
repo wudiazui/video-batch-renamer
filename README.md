@@ -1,68 +1,71 @@
-# 视频批量重命名 GUI 工具
+# 视频批量重命名工具
 
-这是一个 Windows 本地使用的 Python GUI 小工具，用于递归扫描文件夹中的视频，并批量移动到所选文件夹根目录后重命名。
+[![Release](https://img.shields.io/github/v/release/wudiazui/video-batch-renamer)](https://github.com/wudiazui/video-batch-renamer/releases)
+[![tests](https://github.com/wudiazui/video-batch-renamer/actions/workflows/tests.yml/badge.svg)](https://github.com/wudiazui/video-batch-renamer/actions/workflows/tests.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)
+![Platform](https://img.shields.io/badge/platform-Windows-lightgrey.svg)
 
-> 面向最终用户的图文操作教程见 [使用手册.md](使用手册.md)；本次改动见 [更新日志.md](更新日志.md)。
+一个 Windows 桌面小工具，**批量给短剧 / 课程等视频按编号或集数改名**——递归扫描文件夹里的视频，移动到根目录后重命名。改名前先预览、确认无误才执行，每次执行留日志、可一键撤销。
 
-## 功能
+![界面预览](docs/images/ui-overview.svg)
 
-- 一次可添加一个或多个文件夹到统一列表，所有操作都基于这个列表。
-- 递归识别文件夹中的视频文件，支持：`.mp4 .mov .mkv .avi .wmv .flv .webm .m4v .ts`。
-- 模式一 · 连续编号：例如起始数字填 `40`，生成 `40.mp4、41.mp4、42.mp4`。
-  - 可勾选「跨文件夹连续编号」，多个文件夹接续编号（A 有 3 个 → 1、2、3，B 接着 → 4、5）。文件仍各自留在原文件夹，不会合并到一起。
-- 模式二 · 识别集数：识别 `第1集 / 第01集 / 第一集 / 一集 / 1集 / 01.mp4`，也支持中文数字 `第十一集 / 第二十集 / 第一百零八集`，按集数排序后重命名。
-  - 可输出 `第1集.mp4` 或 `剧名-第1集.mp4`。
-- 命名模板：`{number}`、`第{episode}集`、`{title}-第{episode}集`、`EP{episode}`、`EP{number}`、`clip-{number}`。
-- 补零：`1`、`01`、`001`。
-- 必须先生成预览、确认无红色错误后才能执行。
-- 改动任意命名设置后，旧预览自动失效，需重新生成预览，避免按旧规则误执行。
-- 自动拦截非法字符、首尾空格、重复目标、已存在目标、Windows 系统保留名（CON/PRN/NUL 等）。
-- 非视频文件不会删除；只删除本次移动视频后变空的来源子文件夹。
-- 每次执行会在各自文件夹的 `_rename_logs` 目录生成 CSV 日志。
-- 支持按日志撤销：多个文件夹时「撤销最近一次」会找到全部文件夹中时间最新的那条日志。
+## 下载使用
 
-## 快捷键
+**普通用户**：到 [Releases](https://github.com/wudiazui/video-batch-renamer/releases) 下载 `video-batch-renamer-vX.Y.Z.exe`，双击即可运行，**无需安装 Python**。
 
-| 快捷键 | 功能 |
-|--------|------|
-| `Ctrl + O` | 添加文件夹 |
-| `Ctrl + P` | 生成预览 |
-| `Ctrl + Enter` | 确认执行改名 |
-| `Ctrl + Z` | 撤销最近一次 |
-| 列表中 `Delete` | 移除选中的文件夹 |
-| 列表中双击 | 在资源管理器中打开该文件夹 |
-| 列表中右键 | 弹出操作菜单 |
-| 预览清单中双击 | 在资源管理器中定位该文件 |
+详细图文教程见 [使用手册.md](使用手册.md)。
 
-## 源码运行
+## 功能特性
 
-在项目根目录的 PowerShell 中执行（无需第三方依赖）：
+- 🎬 **两种改名模式**：连续编号（`1.mp4、2.mp4…`）/ 识别集数（`第1集 / 01 / 第十一集` → `第1集.mp4` 或 `剧名-第1集.mp4`）。
+- 🗂 **多文件夹**：一次处理多个文件夹；可勾选「跨文件夹连续编号」让编号接续。
+- 👀 **先预览再执行**：确认没有红色错误才能执行；改了设置预览自动失效。
+- ↩️ **可撤销**：每次执行在各文件夹生成 CSV 日志，支持撤销最近一次或指定日志。
+- 🛡 **安全**：不覆盖已有文件，不删非视频文件，只清理移走视频后变空的子文件夹；拦截非法字符与 Windows 保留名。
+- 🍼 **新手友好**：实时「改名后示例」、全控件悬停说明、两步走引导、高级选项默认折叠。
+- 📐 **自适应界面**：整窗滚动、随窗口大小回流，小屏也不截断。
+
+## 快速上手
+
+1. **添加文件夹**（可多个）。
+2. 选 **命名模式**（连续编号 / 识别集数），看「改名后示例」确认效果。
+3. 点 **生成预览**，确认没有红色错误。
+4. 点 **确认执行改名**。改错了用「撤销」。
+
+支持的视频格式：`.mp4 .mov .mkv .avi .wmv .flv .webm .m4v .ts`。
+
+## 命名模板
+
+| 模板 | 模式 | 输出示例 |
+|------|------|----------|
+| `{number}` | 连续编号 | `1.mp4` |
+| `EP{number}` | 连续编号（补零 2） | `EP01.mp4` |
+| `第{episode}集` | 识别集数 | `第1集.mp4` |
+| `{title}-第{episode}集` | 识别集数 | `庆余年-第1集.mp4` |
+
+## 源码运行 / 开发
+
+无第三方依赖（仅 Python 3.10+ 标准库，含 tkinter）。
 
 ```powershell
-python src\main.py
+python src\main.py            # 运行（也可双击 run.bat）
+python -m unittest discover -s tests   # 运行测试
 ```
 
-也可以直接双击 `run.bat` 启动。
-
-## 运行测试
-
-```powershell
-python -B -m unittest discover -s tests
-```
-
-## 打包 EXE
+打包 EXE（需先 `pip install pyinstaller`）：
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\build_exe.ps1
 ```
 
-打包前需要先安装 PyInstaller：`pip install pyinstaller`。打包结果输出到项目根目录的 `release\视频批量重命名工具.exe`。
-
-## 安全建议
-
-第一次处理真实素材前，建议复制一个小文件夹做测试。软件会先预览改名前后的路径，但批量改名本身仍属于高影响操作。
+产物输出到 `release\video-batch-renamer-vX.Y.Z.exe`。
 
 ## 配置和日志
 
-- 历史配置（最近用过的文件夹列表、命名设置、窗口大小）保存到 `%APPDATA%\VideoRenamerGUI\settings.json`。
+- 历史配置（文件夹列表、命名设置、窗口大小）保存到 `%APPDATA%\VideoRenamerGUI\settings.json`。
 - 重命名日志保存到每个被处理目录下的 `_rename_logs`。
+
+## 许可证
+
+[MIT](LICENSE) © 2026 wudiazui

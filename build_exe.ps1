@@ -1,10 +1,11 @@
 $ErrorActionPreference = "Stop"
 
 $ProjectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
-$AppName = -join ([char[]](0x89C6, 0x9891, 0x6279, 0x91CF, 0x91CD, 0x547D, 0x540D, 0x5DE5, 0x5177))
+$Version = "v1.2.0"
+$OutName = "video-batch-renamer-$Version"   # 输出文件名用 ASCII（含版本号），避免上传 GitHub 时资产名被替换成 default.exe
 $ReleaseDir = Join-Path $ProjectRoot "release"
 $BuildDir = Join-Path $ProjectRoot "build"
-$SpecPath = Join-Path $ProjectRoot "$AppName.spec"
+$SpecPath = Join-Path $ProjectRoot "$OutName.spec"
 $Entry = Join-Path $ProjectRoot "src\main.py"
 
 # 打包前的环境自检，给出清晰的错误提示而不是中途崩溃。
@@ -39,7 +40,7 @@ python -m PyInstaller `
     --clean `
     --onefile `
     --windowed `
-    --name $AppName `
+    --name $OutName `
     --distpath $ReleaseDir `
     --workpath $BuildDir `
     --specpath $ProjectRoot `
@@ -52,4 +53,4 @@ if (Test-Path $SpecPath) {
     Remove-Item -LiteralPath $SpecPath -Force
 }
 
-Write-Host "Build complete: $(Join-Path $ReleaseDir ($AppName + '.exe'))"
+Write-Host "Build complete: $(Join-Path $ReleaseDir ($OutName + '.exe'))"
