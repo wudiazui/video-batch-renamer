@@ -1,7 +1,7 @@
 $ErrorActionPreference = "Stop"
 
 $ProjectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
-$Version = "v1.2.0"
+$Version = "v1.2.1"
 $OutName = "video-batch-renamer-$Version"   # 输出文件名用 ASCII（含版本号），避免上传 GitHub 时资产名被替换成 default.exe
 $ReleaseDir = Join-Path $ProjectRoot "release"
 $BuildDir = Join-Path $ProjectRoot "build"
