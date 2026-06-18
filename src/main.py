@@ -127,7 +127,7 @@ class VideoRenamerApp(tk.Tk):
     def __init__(self) -> None:
         super().__init__()
         self.title("视频批量重命名工具")
-        self.minsize(1080, 660)
+        self.minsize(820, 560)
 
         settings = load_settings()
 
@@ -273,8 +273,21 @@ class VideoRenamerApp(tk.Tk):
         return True
 
     def _build_ui(self) -> None:
-        outer = ttk.Frame(self, padding=12, style="Bg.TFrame")
-        outer.pack(fill=tk.BOTH, expand=True)
+        # 整窗纵向滚动：窗口放不下时可滚动看全（小屏/缩放也不截断）；放得下时内容撑满。
+        container = ttk.Frame(self, style="Bg.TFrame")
+        container.pack(fill=tk.BOTH, expand=True)
+        self._canvas = tk.Canvas(container, bg=COLOR_BG, highlightthickness=0)
+        vscroll = ttk.Scrollbar(container, orient=tk.VERTICAL, command=self._canvas.yview)
+        self._canvas.configure(yscrollcommand=vscroll.set)
+        vscroll.pack(side=tk.RIGHT, fill=tk.Y)
+        self._canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+        self._outer = ttk.Frame(self._canvas, padding=12, style="Bg.TFrame")
+        outer = self._outer
+        self._outer_window = self._canvas.create_window((0, 0), window=outer, anchor="nw")
+        outer.bind("<Configure>", lambda e: self._canvas.configure(scrollregion=self._canvas.bbox("all")))
+        self._canvas.bind("<Configure>", self._on_canvas_configure)
+        self.bind_all("<MouseWheel>", self._on_mousewheel)
 
         folder_frame = ttk.LabelFrame(outer, text="①  选择要处理的文件夹（可添加多个）", padding=10, style="Card.TLabelframe")
         folder_frame.pack(fill=tk.X)
@@ -382,13 +395,16 @@ class VideoRenamerApp(tk.Tk):
         self.advanced_frame.grid_remove()  # 默认收起
         self._advanced_visible = False
 
-        guide = ttk.Label(
+        self.guide_label = ttk.Label(
             outer,
             text="操作两步走：先点『生成预览』看效果 → 确认没有红色错误 → 再点『确认执行改名』",
             style="Guide.TLabel",
+            wraplength=1180,
+            justify=tk.LEFT,
         )
-        guide.pack(fill=tk.X, pady=(10, 0))
+        self.guide_label.pack(fill=tk.X, pady=(10, 0))
 
+        # 第一行：主操作
         action_frame = ttk.Frame(outer, style="Bg.TFrame")
         action_frame.pack(fill=tk.X, pady=(4, 0))
         self._add_action_button(
@@ -401,23 +417,26 @@ class VideoRenamerApp(tk.Tk):
         Tooltip(self.execute_button, "按预览的结果真正改名。预览没问题（没有红色）时才能点。")
         self._add_action_button(action_frame, "清空预览", self._clear_preview, padx=(8, 0), tip="清掉下面的预览清单，重新来。")
 
-        self.undo_menubutton = ttk.Menubutton(action_frame, text="撤销")
+        # 第二行：辅助操作 + 状态（拆成两行，窗口变窄时不会被截断）
+        action_frame2 = ttk.Frame(outer, style="Bg.TFrame")
+        action_frame2.pack(fill=tk.X, pady=(6, 0))
+        self.undo_menubutton = ttk.Menubutton(action_frame2, text="撤销")
         undo_menu = tk.Menu(self.undo_menubutton, tearoff=0)
         undo_menu.add_command(label="撤销最近一次", command=self._undo_latest)
         undo_menu.add_command(label="选择日志撤销…", command=self._undo_from_file)
         self.undo_menubutton.configure(menu=undo_menu)
-        self.undo_menubutton.pack(side=tk.LEFT, padx=(18, 0))
+        self.undo_menubutton.pack(side=tk.LEFT)
         self._busy_buttons.append(self.undo_menubutton)
         Tooltip(self.undo_menubutton, "改错了别慌：撤销最近一次，或挑某条日志撤销，恢复到改名前。")
 
         self.only_errors_check = ttk.Checkbutton(
-            action_frame, text="只看出错的", variable=self.only_errors, command=self._render_plans, style="Bg.TCheckbutton"
+            action_frame2, text="只看出错的", variable=self.only_errors, command=self._render_plans, style="Bg.TCheckbutton"
         )
         self.only_errors_check.pack(side=tk.LEFT, padx=(18, 0))
         self._busy_buttons.append(self.only_errors_check)
         Tooltip(self.only_errors_check, "勾选后只显示有问题（红色）的项，方便排查。")
 
-        ttk.Label(action_frame, textvariable=self.status_text, style="Bg.TLabel").pack(side=tk.RIGHT)
+        ttk.Label(action_frame2, textvariable=self.status_text, style="Bg.TLabel").pack(side=tk.RIGHT)
 
         self.hint_label = ttk.Label(outer, textvariable=self.hint_text, style="Hint.TLabel", wraplength=1180, justify=tk.LEFT)
         self.hint_label.pack(fill=tk.X, pady=(6, 0))
@@ -431,37 +450,36 @@ class VideoRenamerApp(tk.Tk):
         preview_frame = ttk.LabelFrame(outer, text="③  预览清单（确认无误后再执行）", padding=10, style="Card.TLabelframe")
         preview_frame.pack(fill=tk.BOTH, expand=True, pady=(10, 0))
 
-        columns = ("folder", "old_name", "new_name", "old", "new", "episode", "status")
+        columns = ("folder", "old_name", "new_name", "episode", "status")
         self.tree = ttk.Treeview(preview_frame, columns=columns, show="headings")
         self._base_headings = {
             "folder": "文件夹",
             "old_name": "原文件名",
             "new_name": "新文件名",
-            "old": "原路径",
-            "new": "新路径",
             "episode": "集",
             "status": "状态",
         }
-        widths = {"folder": 160, "old_name": 170, "new_name": 180, "old": 330, "new": 330, "episode": 60, "status": 150}
+        widths = {"folder": 130, "old_name": 185, "new_name": 195, "episode": 45, "status": 135}
         for column in columns:
             self.tree.heading(column, text=self._base_headings[column], command=lambda c=column: self._sort_by(c))
-            self.tree.column(column, width=widths[column], anchor="center" if column == "episode" else "w")
+            self.tree.column(
+                column, width=widths[column], minwidth=40, stretch=True,
+                anchor="center" if column == "episode" else "w",
+            )
         self.tree.tag_configure("error", foreground=COLOR_ERROR)
         self.tree.tag_configure("ok", foreground=COLOR_OK)
         self.tree.tag_configure("hint", foreground=COLOR_MUTED)
         self.tree.bind("<Double-1>", self._on_preview_double_click)
 
         y_scroll = ttk.Scrollbar(preview_frame, orient=tk.VERTICAL, command=self.tree.yview)
-        x_scroll = ttk.Scrollbar(preview_frame, orient=tk.HORIZONTAL, command=self.tree.xview)
-        self.tree.configure(yscrollcommand=y_scroll.set, xscrollcommand=x_scroll.set)
+        self.tree.configure(yscrollcommand=y_scroll.set)
         self.tree.grid(row=0, column=0, sticky="nsew")
         y_scroll.grid(row=0, column=1, sticky="ns")
-        x_scroll.grid(row=1, column=0, sticky="ew")
         ttk.Label(
             preview_frame,
-            text="提示：点表头可排序；双击某一行可在资源管理器中定位该文件。",
+            text="提示：点表头可排序；双击某一行可在资源管理器中定位该文件（完整路径在那里看）。",
             style="Muted.TLabel",
-        ).grid(row=2, column=0, columnspan=2, sticky="w", pady=(6, 0))
+        ).grid(row=1, column=0, columnspan=2, sticky="w", pady=(6, 0))
         preview_frame.rowconfigure(0, weight=1)
         preview_frame.columnconfigure(0, weight=1)
 
@@ -518,6 +536,32 @@ class VideoRenamerApp(tk.Tk):
         self.folder_listbox.bind("<Delete>", lambda e: self._remove_selected_folders())
         self.folder_listbox.bind("<Double-Button-1>", lambda e: self._open_selected_folder())
         self.folder_listbox.bind("<Button-3>", self._show_folder_menu)
+        self.bind("<Configure>", self._on_resize, add="+")
+
+    def _on_resize(self, event) -> None:
+        # 窗口尺寸变化时，让长文字（引导/提示）按当前宽度换行，避免变窄被截断。
+        if event.widget is not self:
+            return
+        width = max(240, event.width - 64)
+        self.guide_label.configure(wraplength=width)
+        self.hint_label.configure(wraplength=width)
+
+    def _on_canvas_configure(self, event) -> None:
+        # 内容宽度跟随画布；内容不足一屏时撑满画布高度，让预览表仍能纵向铺满。
+        self._canvas.itemconfigure(self._outer_window, width=event.width)
+        self._canvas.itemconfigure(self._outer_window, height=max(event.height, self._outer.winfo_reqheight()))
+
+    def _on_mousewheel(self, event) -> None:
+        step = -1 if event.delta > 0 else 1
+        widget = event.widget
+        try:
+            # 指针在预览表上就滚动表本身，否则滚动整页。
+            if widget is self.tree or str(widget).startswith(str(self.tree)):
+                self.tree.yview_scroll(step, "units")
+            else:
+                self._canvas.yview_scroll(step, "units")
+        except tk.TclError:
+            pass
 
     # ----- 文件夹列表 -----
     def _count_videos(self, folder: str) -> int | None:
@@ -790,8 +834,6 @@ class VideoRenamerApp(tk.Tk):
                     plan.root.name,
                     item.old_path.name,
                     item.new_path.name,
-                    str(item.old_path),
-                    str(item.new_path),
                     episode_text,
                     item.status,
                 ),
@@ -833,11 +875,9 @@ class VideoRenamerApp(tk.Tk):
             values=(
                 "操作指引",
                 "① 添加文件夹",
-                "② 选择命名设置",
-                "③ 生成预览",
-                "④ 确认执行改名",
+                "② 命名设置 → ③ 生成预览",
                 "",
-                "按 F1 查看使用说明和快捷键",
+                "④ 确认执行改名（按 F1 看说明）",
             ),
             tags=("hint",),
         )
