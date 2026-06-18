@@ -227,6 +227,38 @@ class GuiInteractionTests(unittest.TestCase):
         finally:
             app.destroy()
 
+    def test_manual_set_episode_fixes_unrecognized_row(self):
+        import main as main_module
+        import tempfile
+        from unittest import mock
+
+        app = self._make_app()
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                (Path(tmp) / "第1集.mp4").write_bytes(b"v")
+                (Path(tmp) / "花絮.mp4").write_bytes(b"v")
+                app._append_folder(tmp, count=None)
+                app.mode.set("episode")
+                app._on_mode_changed()
+                with mock.patch.object(main_module, "save_settings"):
+                    app._preview()
+                self.assertFalse(all(p.can_execute for p in app.current_plans))
+
+                target = None
+                for row_id in app.tree.get_children():
+                    pair = app._plan_item_for_tree_id(row_id)
+                    if pair and pair[1].old_path.name == "花絮.mp4":
+                        target = row_id
+                self.assertIsNotNone(target)
+                app.tree.selection_set(target)
+
+                with mock.patch.object(main_module.simpledialog, "askinteger", return_value=2):
+                    app._manual_set_episode()
+
+                self.assertTrue(all(p.can_execute for p in app.current_plans))
+        finally:
+            app.destroy()
+
 
 if __name__ == "__main__":
     unittest.main()

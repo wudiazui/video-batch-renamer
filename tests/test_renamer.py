@@ -8,6 +8,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from renamer import (
     RenameOptions,
+    apply_manual_episode,
     build_rename_plan,
     build_rename_plans,
     clear_windows_hidden_attribute,
@@ -266,6 +267,37 @@ class RenamerTests(unittest.TestCase):
     def test_example_names_episode_with_title(self):
         names = example_names(RenameOptions(mode="episode", episode_output="title", title="剧名"))
         self.assertEqual(names, ["剧名-第1集.mp4", "剧名-第2集.mp4", "剧名-第3集.mp4"])
+
+    def test_apply_manual_episode_fixes_unrecognized_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            touch(root / "第1集.mp4")
+            touch(root / "花絮.mp4")  # 自动识别不出
+
+            plan = build_rename_plan(root, RenameOptions(mode="episode"))
+            self.assertFalse(plan.can_execute)
+            unrecognized = next(item for item in plan.items if item.old_path.name == "花絮.mp4")
+            self.assertIsNone(unrecognized.episode_number)
+
+            apply_manual_episode(plan, unrecognized, 2)
+
+            self.assertEqual(unrecognized.episode_number, 2)
+            self.assertEqual(unrecognized.new_path.name, "第2集.mp4")
+            self.assertTrue(unrecognized.ok)
+            self.assertTrue(plan.can_execute)
+
+    def test_apply_manual_episode_detects_duplicate(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            touch(root / "第1集.mp4")
+            touch(root / "花絮.mp4")
+
+            plan = build_rename_plan(root, RenameOptions(mode="episode"))
+            unrecognized = next(item for item in plan.items if item.old_path.name == "花絮.mp4")
+            apply_manual_episode(plan, unrecognized, 1)  # 故意撞上已有的第1集
+
+            self.assertFalse(plan.can_execute)
+            self.assertTrue(any("重复" in item.status for item in plan.items))
 
     def test_find_videos_recurses_and_ignores_non_video_files(self):
         with tempfile.TemporaryDirectory() as tmp:
