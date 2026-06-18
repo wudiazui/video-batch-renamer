@@ -8,10 +8,10 @@ import threading
 import traceback
 from pathlib import Path
 import tkinter as tk
-from tkinter import filedialog, messagebox, ttk
+from tkinter import filedialog, messagebox, simpledialog, ttk
 
 from operation_log import build_undo_plan, execute_undo_plan, find_latest_log
-from renamer import RenameOptions, RenamePlan, build_rename_plans, example_names, execute_rename_plan
+from renamer import RenameOptions, RenamePlan, apply_manual_episode, build_rename_plans, example_names, execute_rename_plan
 from scanner import find_videos
 from settings_store import load_settings, save_settings
 
@@ -470,6 +470,11 @@ class VideoRenamerApp(tk.Tk):
         self.tree.tag_configure("ok", foreground=COLOR_OK)
         self.tree.tag_configure("hint", foreground=COLOR_MUTED)
         self.tree.bind("<Double-1>", self._on_preview_double_click)
+        self.tree.bind("<Button-3>", self._show_tree_menu)
+
+        self.tree_menu = tk.Menu(self, tearoff=0)
+        self.tree_menu.add_command(label="手动设置集数…", command=self._manual_set_episode)
+        self.tree_menu.add_command(label="在资源管理器中定位", command=self._reveal_selected_row)
 
         y_scroll = ttk.Scrollbar(preview_frame, orient=tk.VERTICAL, command=self.tree.yview)
         self.tree.configure(yscrollcommand=y_scroll.set)
@@ -477,7 +482,7 @@ class VideoRenamerApp(tk.Tk):
         y_scroll.grid(row=0, column=1, sticky="ns")
         ttk.Label(
             preview_frame,
-            text="提示：点表头可排序；双击某一行可在资源管理器中定位该文件（完整路径在那里看）。",
+            text="提示：点表头排序；双击行定位文件；右键可手动设置集数（识别失败的红色行也能补上）。",
             style="Muted.TLabel",
         ).grid(row=1, column=0, columnspan=2, sticky="w", pady=(6, 0))
         preview_frame.rowconfigure(0, weight=1)
@@ -945,6 +950,58 @@ class VideoRenamerApp(tk.Tk):
                 subprocess.Popen(["xdg-open", str(target.parent)])
         except OSError:
             pass
+
+    def _selected_tree_pair(self):
+        selection = self.tree.selection()
+        if not selection:
+            return None
+        return self._plan_item_for_tree_id(selection[0])
+
+    def _show_tree_menu(self, event) -> None:
+        if self._busy:
+            return
+        row_id = self.tree.identify_row(event.y)
+        if not row_id:
+            return
+        self.tree.selection_set(row_id)
+        self.tree.focus(row_id)
+        pair = self._plan_item_for_tree_id(row_id)
+        is_episode = pair is not None and pair[0].options.mode == "episode"
+        self.tree_menu.entryconfigure(0, state=tk.NORMAL if is_episode else tk.DISABLED)
+        try:
+            self.tree_menu.tk_popup(event.x_root, event.y_root)
+        finally:
+            self.tree_menu.grab_release()
+
+    def _reveal_selected_row(self) -> None:
+        pair = self._selected_tree_pair()
+        if pair is None:
+            return
+        _plan, item = pair
+        self._reveal_path(item.old_path if item.old_path.exists() else item.new_path)
+
+    def _manual_set_episode(self) -> None:
+        if self._busy:
+            return
+        pair = self._selected_tree_pair()
+        if pair is None:
+            return
+        plan, item = pair
+        if plan.options.mode != "episode":
+            messagebox.showinfo("提示", "手动设置集数仅用于「识别集数」模式。", parent=self)
+            return
+        episode = simpledialog.askinteger(
+            "手动设置集数",
+            f"给「{item.old_path.name}」指定第几集：",
+            parent=self,
+            minvalue=0,
+            maxvalue=99999,
+            initialvalue=item.episode_number if item.episode_number is not None else 1,
+        )
+        if episode is None:
+            return
+        apply_manual_episode(plan, item, episode)
+        self._render_plans()
 
     # ----- 执行 -----
     def _execute(self) -> None:

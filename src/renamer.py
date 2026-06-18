@@ -274,6 +274,32 @@ def example_names(options: RenameOptions, count: int = 3) -> list[str]:
     return names
 
 
+def revalidate_episode_plan(plan: RenamePlan) -> None:
+    """识别集数模式下手动改过集数后，重算整批每条记录的状态与冲突。"""
+    for item in plan.items:
+        if item.episode_number is None:
+            item.new_path = plan.root / item.old_path.name
+            item.status = "无法识别集数"
+            item.error_type = "parse"
+        else:
+            refreshed = _make_item(item.old_path, item.new_path, item.episode_number)
+            item.status = refreshed.status
+            item.error_type = refreshed.error_type
+    _mark_conflicts(plan.items)
+
+
+def apply_manual_episode(plan: RenamePlan, item: RenameItem, episode: int) -> None:
+    """手动给某条记录指定集数，按计划模板重算新名，并刷新整批校验。
+
+    用于“识别集数”模式：自动识别失败（或想覆盖）的文件，手动填集数后即可改名。
+    """
+    template = _default_template(plan.options)
+    stem = _render_template(template, plan.options, number=None, episode=episode)
+    item.episode_number = episode
+    item.new_path = plan.root / f"{stem}{_extension_for(item.old_path, plan.options)}"
+    revalidate_episode_plan(plan)
+
+
 def _build_sequential_items(root: Path, videos: list[Path], options: RenameOptions) -> list[RenameItem]:
     ordered = sorted(videos, key=lambda p: natural_sort_key(p.relative_to(root)))
     items: list[RenameItem] = []
