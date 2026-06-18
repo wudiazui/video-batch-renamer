@@ -358,7 +358,7 @@ class VideoRenamerApp(tk.Tk):
             mode_frame, text="识别集数", variable=self.mode, value="episode", command=self._on_mode_changed
         )
         self.ep_radio.grid(row=2, column=0, sticky="w")
-        ttk.Label(mode_frame, text="文件名里已有集数（第1集 / 01），按集数来命名", style="Muted.TLabel").grid(
+        ttk.Label(mode_frame, text="文件名里已有集数（第1集 / 01 / EP6 / 超清-6），按集数来命名", style="Muted.TLabel").grid(
             row=2, column=1, sticky="w", padx=(8, 0)
         )
         ep_row = ttk.Frame(mode_frame)
@@ -496,7 +496,7 @@ class VideoRenamerApp(tk.Tk):
     def _attach_tooltips(self) -> None:
         tips = {
             self.seq_radio: "按顺序重新编号，忽略原文件名。适合文件名杂乱、只想从头排号的情况。",
-            self.ep_radio: "从文件名里识别集数（第1集 / 01 / 第十一集）后改名。适合本来就带集数的情况。",
+            self.ep_radio: "从文件名里识别集数（第1集 / 01 / 第十一集 / EP6 / 超清-6 等）后改名。适合本来就带集数的情况。",
             self.start_entry: "改名后的第一个数字。例如填 1 → 1.mp4、2.mp4……",
             self.cross_folder_check: (
                 "勾选后多个文件夹接续编号（A→1,2,3，B→4,5）；不勾选则每个文件夹都从起始数字重新开始。"
