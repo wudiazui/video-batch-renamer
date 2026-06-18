@@ -27,7 +27,24 @@ class EpisodeParserTests(unittest.TestCase):
     def test_returns_none_when_no_episode_number_exists(self):
         self.assertIsNone(parse_episode_number("花絮.mp4"))
         self.assertIsNone(parse_episode_number("第集.mp4"))
-        self.assertIsNone(parse_episode_number("1080P-1.mp4"))
+        self.assertIsNone(parse_episode_number("1080P.mp4"))      # 纯清晰度不是集数
+        self.assertIsNone(parse_episode_number("我的剧2024.mp4"))  # 四位年份不当集数
+        self.assertIsNone(parse_episode_number("1920x1080.mp4"))  # 分辨率不当集数
+
+    def test_parses_loosely_embedded_numbers_without_marker(self):
+        # 没有“集/话”标记，但带数字：剔除清晰度/编码噪声后取最后一个 1~3 位独立数字。
+        examples = {
+            "超清-6.mp4": 6,
+            "EP6.mp4": 6,
+            "第6话.mp4": 6,
+            "S01E06.mp4": 6,
+            "1080P-6.mp4": 6,
+            "超清720-8.mp4": 8,
+            "x264-12.mp4": 12,
+        }
+        for name, expected in examples.items():
+            with self.subTest(name=name):
+                self.assertEqual(parse_episode_number(name), expected)
 
     def test_parses_pure_numeric_stem_as_episode_number(self):
         self.assertEqual(parse_episode_number("1.mp4"), 1)
