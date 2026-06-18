@@ -12,7 +12,7 @@
 
 ## 下载使用
 
-**普通用户**：到 [Releases](https://github.com/wudiazui/video-batch-renamer/releases) 下载 `视频批量重命名工具-vX.Y.Z.exe`，双击即可运行，**无需安装 Python**。
+**普通用户**：到 [Releases](https://github.com/wudiazui/video-batch-renamer/releases) 下载 `video-batch-renamer-vX.Y.Z.exe`，双击即可运行，**无需安装 Python**。
 
 详细图文教程见 [使用手册.md](使用手册.md)。
 
@@ -59,7 +59,7 @@ python -m unittest discover -s tests   # 运行测试
 powershell -ExecutionPolicy Bypass -File .\build_exe.ps1
 ```
 
-产物输出到 `release\视频批量重命名工具-vX.Y.Z.exe`。
+产物输出到 `release\video-batch-renamer-vX.Y.Z.exe`。
 
 ## 配置和日志
 
