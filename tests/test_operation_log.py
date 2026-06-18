@@ -29,8 +29,10 @@ class OperationLogTests(unittest.TestCase):
             self.assertTrue(result.log_path.exists())
             with result.log_path.open("r", encoding="utf-8-sig", newline="") as file:
                 rows = list(csv.DictReader(file))
-            self.assertEqual(rows[0]["original_path"], str(original))
-            self.assertEqual(rows[0]["new_path"], str(root / "第1集.mp4"))
+            # 用 resolve 后的路径比较：程序内部对根目录做了 .resolve()，
+            # 在用户名超 8 字符的环境（如 CI 的 runneradmin）下会出现 Windows 8.3 长/短名差异。
+            self.assertEqual(rows[0]["original_path"], str(original.resolve()))
+            self.assertEqual(rows[0]["new_path"], str((root / "第1集.mp4").resolve()))
             self.assertEqual(rows[0]["status"], "success")
 
             undo_plan = build_undo_plan(result.log_path)
