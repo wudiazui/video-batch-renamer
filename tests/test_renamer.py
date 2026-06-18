@@ -11,6 +11,7 @@ from renamer import (
     build_rename_plan,
     build_rename_plans,
     clear_windows_hidden_attribute,
+    example_names,
     execute_rename_plan,
     get_windows_file_attributes,
     make_staging_path,
@@ -253,6 +254,18 @@ class RenamerTests(unittest.TestCase):
 
             self.assertEqual([item.new_path.name for item in plans[0].items], ["1.mp4", "2.mp4"])
             self.assertEqual([item.new_path.name for item in plans[1].items], ["1.mp4"])
+
+    def test_example_names_sequential(self):
+        names = example_names(RenameOptions(mode="sequential", start_number=1))
+        self.assertEqual(names, ["1.mp4", "2.mp4", "3.mp4"])
+
+    def test_example_names_sequential_padding_and_template(self):
+        names = example_names(RenameOptions(mode="sequential", start_number=1, template="EP{number}", number_width=2))
+        self.assertEqual(names, ["EP01.mp4", "EP02.mp4", "EP03.mp4"])
+
+    def test_example_names_episode_with_title(self):
+        names = example_names(RenameOptions(mode="episode", episode_output="title", title="剧名"))
+        self.assertEqual(names, ["剧名-第1集.mp4", "剧名-第2集.mp4", "剧名-第3集.mp4"])
 
     def test_find_videos_recurses_and_ignores_non_video_files(self):
         with tempfile.TemporaryDirectory() as tmp:

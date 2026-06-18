@@ -22,7 +22,7 @@ class GuiHelpTests(unittest.TestCase):
             with self.subTest(phrase=phrase):
                 self.assertIn(phrase, HELP_TEXT)
 
-    def test_main_window_has_help_button(self):
+    def test_main_window_has_core_buttons(self):
         app = VideoRenamerApp()
         app.withdraw()
         try:
@@ -35,8 +35,9 @@ class GuiHelpTests(unittest.TestCase):
                     collect_button_texts(child)
 
             collect_button_texts(app)
-            self.assertIn("使用说明", button_texts)
             self.assertIn("添加文件夹", button_texts)
+            self.assertIn("生成预览", button_texts)
+            self.assertNotIn("使用说明", button_texts)  # 帮助按钮已移除
         finally:
             app.destroy()
 
@@ -189,6 +190,40 @@ class GuiInteractionTests(unittest.TestCase):
                 ) as startfile:
                     app._reveal_path(item.old_path)
                     self.assertTrue(popen.called or startfile.called)
+        finally:
+            app.destroy()
+
+    def test_advanced_hidden_by_default_and_example_filled(self):
+        app = self._make_app()
+        try:
+            self.assertFalse(app._advanced_visible)  # 高级设置默认折叠
+            self.assertTrue(app.example_text.get())  # 实时“改名后示例”非空
+            app._toggle_advanced()
+            self.assertTrue(app._advanced_visible)
+            app._toggle_advanced()
+            self.assertFalse(app._advanced_visible)
+        finally:
+            app.destroy()
+
+    def test_only_errors_checkbox_hides_ok_rows(self):
+        import main as main_module
+        import tempfile
+        from unittest import mock
+
+        app = self._make_app()
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                (Path(tmp) / "01.mp4").write_bytes(b"v")
+                (Path(tmp) / "花絮.mp4").write_bytes(b"v")
+                app._append_folder(tmp, count=None)
+                app.mode.set("episode")
+                app._on_mode_changed()
+                with mock.patch.object(main_module, "save_settings"):
+                    app._preview()
+                total = len(app.tree.get_children())
+                app.only_errors.set(True)
+                app._render_plans()
+                self.assertLess(len(app.tree.get_children()), total)  # 只看出错后行数变少
         finally:
             app.destroy()
 

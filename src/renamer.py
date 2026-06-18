@@ -254,6 +254,26 @@ def build_rename_plans(
     return plans
 
 
+def example_names(options: RenameOptions, count: int = 3) -> list[str]:
+    """生成若干示例输出文件名，用于界面实时预览“改名后大概长这样”。
+
+    连续编号：从 start_number 起取 count 个；识别集数：按第 1..count 集示意。
+    统一用 .mp4 作为示例扩展名，仅供展示。
+    """
+    template = _default_template(options)
+    extension = ".mp4"
+    names: list[str] = []
+    if options.mode == "sequential":
+        for offset in range(count):
+            stem = _render_template(template, options, number=options.start_number + offset, episode=None)
+            names.append(f"{stem}{extension}")
+    else:
+        for episode in range(1, count + 1):
+            stem = _render_template(template, options, number=None, episode=episode)
+            names.append(f"{stem}{extension}")
+    return names
+
+
 def _build_sequential_items(root: Path, videos: list[Path], options: RenameOptions) -> list[RenameItem]:
     ordered = sorted(videos, key=lambda p: natural_sort_key(p.relative_to(root)))
     items: list[RenameItem] = []

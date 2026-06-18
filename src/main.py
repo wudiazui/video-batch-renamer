@@ -11,7 +11,7 @@ import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 
 from operation_log import build_undo_plan, execute_undo_plan, find_latest_log
-from renamer import RenameOptions, RenamePlan, build_rename_plans, execute_rename_plan
+from renamer import RenameOptions, RenamePlan, build_rename_plans, example_names, execute_rename_plan
 from scanner import find_videos
 from settings_store import load_settings, save_settings
 
@@ -22,6 +22,24 @@ EPISODE_TEMPLATES = ["第{episode}集", "{title}-第{episode}集", "EP{episode}"
 DEFAULT_TEMPLATE = {"sequential": "{number}", "episode": "第{episode}集"}
 
 GEOMETRY_RE = re.compile(r"^\d+x\d+([+-]\d+[+-]\d+)?$")
+
+# 现代配色（零依赖，基于 ttk 内置 clam 主题）：白卡片 + 蓝色强调 + 灰底。
+COLOR_BG = "#eef1f6"        # 卡片之间的底色
+COLOR_CARD = "#ffffff"      # 卡片白底
+COLOR_ACCENT = "#2d6cdf"    # 主强调蓝
+COLOR_ACCENT_DARK = "#2356b8"
+COLOR_TEXT = "#1f2a44"
+COLOR_MUTED = "#5b6472"
+COLOR_BORDER = "#c8ccd4"
+COLOR_FIELD = "#ffffff"     # 输入框 / 表格白底
+COLOR_BTN = "#e7eaf0"       # 普通按钮底
+COLOR_BTN_ACTIVE = "#d8deea"
+COLOR_SEL = "#cfe0ff"       # 选中高亮
+COLOR_ERROR = "#b00020"
+COLOR_OK = "#1a7f37"
+FONT_BASE = ("Microsoft YaHei UI", 10)
+FONT_TITLE = ("Microsoft YaHei UI", 11, "bold")
+FONT_HEAD = ("Microsoft YaHei UI", 10, "bold")
 
 # 把机器化的错误状态翻译成用户能照着做的一句话提示。
 STATUS_TIPS = {
@@ -122,11 +140,12 @@ class VideoRenamerApp(tk.Tk):
         self.number_width = tk.StringVar(value=str(settings.get("number_width", "1")))
         self.keep_extension_case = tk.BooleanVar(value=bool(settings.get("keep_extension_case", False)))
         self.cross_folder = tk.BooleanVar(value=bool(settings.get("cross_folder", False)))
-        self.status_filter = tk.StringVar(value="全部")
+        self.only_errors = tk.BooleanVar(value=False)
         self.status_text = tk.StringVar(value="请先添加文件夹并生成预览。")
         self.hint_text = tk.StringVar(value="")
         self.progress_text = tk.StringVar(value="")
         self.folder_summary = tk.StringVar(value="")
+        self.example_text = tk.StringVar(value="")  # 实时“改名后示例”
 
         # 每种模式各自记住上次用的模板，切换模式时不会互相覆盖。
         self._template_by_mode = dict(DEFAULT_TEMPLATE)
@@ -157,10 +176,12 @@ class VideoRenamerApp(tk.Tk):
         self._busy = False  # 执行/撤销进行中：用于拦截快捷键重复触发
 
         self._restore_geometry(settings.get("window_geometry"))
+        self._setup_theme()
         self._build_ui()
         self._attach_tooltips()
         self._refresh_folder_list()
         self._toggle_mode_inputs()
+        self._update_example()
         self._show_empty_hint()
         self._register_setting_traces()
         self._bind_shortcuts()
@@ -176,6 +197,71 @@ class VideoRenamerApp(tk.Tk):
             except tk.TclError:
                 pass
 
+    def _setup_theme(self) -> None:
+        """零依赖现代配色：基于内置 clam 主题，自定义卡片、按钮、表格、进度条等样式。"""
+        self.configure(bg=COLOR_BG)
+        self.option_add("*Font", FONT_BASE)  # 让 Listbox / Menu 等原生控件也用统一字体
+        style = ttk.Style(self)
+        try:
+            style.theme_use("clam")
+        except tk.TclError:
+            return
+
+        style.configure(".", background=COLOR_CARD, foreground=COLOR_TEXT, font=FONT_BASE)
+        style.configure("TLabel", background=COLOR_CARD, foreground=COLOR_TEXT)
+        style.configure("TCheckbutton", background=COLOR_CARD, foreground=COLOR_TEXT)
+        style.map("TCheckbutton", background=[("active", COLOR_CARD)])
+        style.configure("TRadiobutton", background=COLOR_CARD, foreground=COLOR_TEXT)
+        style.map("TRadiobutton", background=[("active", COLOR_CARD)])
+        style.configure("TFrame", background=COLOR_CARD)
+
+        # 卡片之间的灰底容器与标签
+        style.configure("Bg.TFrame", background=COLOR_BG)
+        style.configure("Bg.TLabel", background=COLOR_BG, foreground=COLOR_TEXT)
+        style.configure("Muted.TLabel", background=COLOR_CARD, foreground=COLOR_MUTED)
+        style.configure("Hint.TLabel", background=COLOR_BG, foreground=COLOR_ERROR)
+
+        # 卡片：白底 + 细边 + 蓝色粗体标题
+        style.configure("Card.TLabelframe", background=COLOR_CARD, bordercolor=COLOR_BORDER, relief="solid", borderwidth=1)
+        style.configure("Card.TLabelframe.Label", background=COLOR_CARD, foreground=COLOR_ACCENT, font=FONT_TITLE)
+
+        # 普通按钮（扁平浅灰）
+        style.configure("TButton", background=COLOR_BTN, foreground=COLOR_TEXT, bordercolor=COLOR_BORDER, relief="flat", padding=(12, 6))
+        style.map("TButton", background=[("active", COLOR_BTN_ACTIVE), ("disabled", "#f0f1f4")], foreground=[("disabled", "#a4abb6")])
+        # 下拉按钮（撤销 ▾）外观与普通按钮一致
+        style.configure("TMenubutton", background=COLOR_BTN, foreground=COLOR_TEXT, bordercolor=COLOR_BORDER, relief="flat", padding=(12, 6), arrowcolor=COLOR_TEXT)
+        style.map("TMenubutton", background=[("active", COLOR_BTN_ACTIVE), ("disabled", "#f0f1f4")], foreground=[("disabled", "#a4abb6")])
+        # 主按钮（蓝底白字）
+        style.configure("Accent.TButton", background=COLOR_ACCENT, foreground="#ffffff", bordercolor=COLOR_ACCENT, relief="flat", padding=(12, 6), font=FONT_HEAD)
+        style.map("Accent.TButton", background=[("active", COLOR_ACCENT_DARK), ("disabled", "#b9c6e6")], foreground=[("disabled", "#eef1f6")])
+
+        # 输入框 / 下拉框：白色字段
+        for name in ("TEntry", "TCombobox", "TSpinbox"):
+            style.configure(name, fieldbackground=COLOR_FIELD, background=COLOR_FIELD, bordercolor=COLOR_BORDER, arrowcolor=COLOR_TEXT, padding=4)
+        style.map("TCombobox", fieldbackground=[("readonly", COLOR_FIELD)])
+
+        # 进度条（蓝色）
+        style.configure("Horizontal.TProgressbar", background=COLOR_ACCENT, troughcolor="#dfe3ea", bordercolor="#dfe3ea", lightcolor=COLOR_ACCENT, darkcolor=COLOR_ACCENT)
+
+        # 预览表格
+        style.configure("Treeview", background=COLOR_FIELD, fieldbackground=COLOR_FIELD, foreground=COLOR_TEXT, rowheight=26, borderwidth=1, bordercolor=COLOR_BORDER)
+        style.map("Treeview", background=[("selected", COLOR_SEL)], foreground=[("selected", COLOR_TEXT)])
+        style.configure("Treeview.Heading", background=COLOR_BTN, foreground=COLOR_TEXT, font=FONT_HEAD, relief="flat", padding=4)
+        style.map("Treeview.Heading", background=[("active", COLOR_BTN_ACTIVE)])
+
+        # 滚动条
+        style.configure("TScrollbar", background=COLOR_BTN, troughcolor=COLOR_BG, bordercolor=COLOR_BG, arrowcolor=COLOR_TEXT)
+
+        # 灰底上的勾选框（如“只看出错的”）
+        style.configure("Bg.TCheckbutton", background=COLOR_BG, foreground=COLOR_TEXT)
+        style.map("Bg.TCheckbutton", background=[("active", COLOR_BG)])
+        # 操作引导小字（灰底）
+        style.configure("Guide.TLabel", background=COLOR_BG, foreground="#3a4151")
+        # 实时示例（白卡片上、蓝色粗体）
+        style.configure("Example.TLabel", background=COLOR_CARD, foreground=COLOR_ACCENT, font=FONT_HEAD)
+        # 可点击的“高级设置”折叠条
+        style.configure("Toggle.TLabel", background=COLOR_CARD, foreground=COLOR_ACCENT)
+
     def _append_folder(self, folder: str, count: int | None) -> bool:
         if not folder or not folder.strip():
             return False
@@ -187,19 +273,20 @@ class VideoRenamerApp(tk.Tk):
         return True
 
     def _build_ui(self) -> None:
-        outer = ttk.Frame(self, padding=12)
+        outer = ttk.Frame(self, padding=12, style="Bg.TFrame")
         outer.pack(fill=tk.BOTH, expand=True)
 
-        folder_frame = ttk.LabelFrame(outer, text="1. 选择要处理的文件夹（可添加多个）", padding=10)
+        folder_frame = ttk.LabelFrame(outer, text="①  选择要处理的文件夹（可添加多个）", padding=10, style="Card.TLabelframe")
         folder_frame.pack(fill=tk.X)
 
         button_row = ttk.Frame(folder_frame)
         button_row.grid(row=0, column=0, sticky="w")
-        self._add_action_button(button_row, "添加文件夹", self._add_folder)
-        self._add_action_button(button_row, "移除选中", self._remove_selected_folders)
-        self._add_action_button(button_row, "清空列表", self._clear_folders)
-        ttk.Button(button_row, text="使用说明", command=self._show_help_dialog).pack(side=tk.LEFT, padx=(0, 6))
-        ttk.Label(folder_frame, textvariable=self.folder_summary, foreground="#444").grid(
+        self._add_action_button(button_row, "添加文件夹", self._add_folder, style="Accent.TButton",
+                                tip="选一个要批量改名的视频文件夹加进列表，可以加多个。")
+        self._add_action_button(button_row, "移除选中", self._remove_selected_folders,
+                                tip="把列表里选中的文件夹移出去（不会动你的真实文件）。")
+        self._add_action_button(button_row, "清空列表", self._clear_folders, tip="清空整个文件夹列表，重新选。")
+        ttk.Label(folder_frame, textvariable=self.folder_summary, style="Muted.TLabel").grid(
             row=0, column=1, sticky="e"
         )
         folder_frame.columnconfigure(0, weight=1)
@@ -207,7 +294,21 @@ class VideoRenamerApp(tk.Tk):
         list_wrap = ttk.Frame(folder_frame)
         list_wrap.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(8, 0))
         list_wrap.columnconfigure(0, weight=1)
-        self.folder_listbox = tk.Listbox(list_wrap, height=4, selectmode=tk.EXTENDED, activestyle="none")
+        self.folder_listbox = tk.Listbox(
+            list_wrap,
+            height=4,
+            selectmode=tk.EXTENDED,
+            activestyle="none",
+            bg=COLOR_FIELD,
+            fg=COLOR_TEXT,
+            selectbackground=COLOR_SEL,
+            selectforeground=COLOR_TEXT,
+            relief="solid",
+            borderwidth=1,
+            highlightthickness=1,
+            highlightbackground=COLOR_BORDER,
+            highlightcolor=COLOR_ACCENT,
+        )
         self.folder_listbox.grid(row=0, column=0, sticky="ew")
         folder_scroll = ttk.Scrollbar(list_wrap, orient=tk.VERTICAL, command=self.folder_listbox.yview)
         self.folder_listbox.configure(yscrollcommand=folder_scroll.set)
@@ -220,77 +321,114 @@ class VideoRenamerApp(tk.Tk):
         self.folder_menu.add_command(label="移除选中", command=self._remove_selected_folders)
         self.folder_menu.add_command(label="清空列表", command=self._clear_folders)
 
-        mode_frame = ttk.LabelFrame(outer, text="2. 命名设置", padding=10)
+        mode_frame = ttk.LabelFrame(outer, text="②  怎么给视频命名", padding=10, style="Card.TLabelframe")
         mode_frame.pack(fill=tk.X, pady=(10, 0))
 
+        # 模式一：连续编号
         self.seq_radio = ttk.Radiobutton(
-            mode_frame,
-            text="连续编号",
-            variable=self.mode,
-            value="sequential",
-            command=self._on_mode_changed,
+            mode_frame, text="连续编号", variable=self.mode, value="sequential", command=self._on_mode_changed
         )
-        self.seq_radio.grid(row=0, column=0, sticky="w", padx=(0, 16), pady=3)
-        ttk.Label(mode_frame, text="起始数字：").grid(row=0, column=1, sticky="e")
-        self.start_entry = ttk.Entry(mode_frame, textvariable=self.start_number, width=10)
-        self.start_entry.grid(row=0, column=2, sticky="w", padx=(0, 14))
-        self.cross_folder_check = ttk.Checkbutton(
-            mode_frame, text="跨文件夹连续编号", variable=self.cross_folder
+        self.seq_radio.grid(row=0, column=0, sticky="w")
+        ttk.Label(mode_frame, text="文件名乱、不管原名，从头按顺序排号", style="Muted.TLabel").grid(
+            row=0, column=1, sticky="w", padx=(8, 0)
         )
-        self.cross_folder_check.grid(row=0, column=3, columnspan=2, sticky="w")
+        seq_row = ttk.Frame(mode_frame)
+        seq_row.grid(row=1, column=0, columnspan=2, sticky="w", padx=(24, 0), pady=(2, 8))
+        ttk.Label(seq_row, text="从第几号开始：").pack(side=tk.LEFT)
+        self.start_entry = ttk.Entry(seq_row, textvariable=self.start_number, width=8)
+        self.start_entry.pack(side=tk.LEFT, padx=(0, 16))
+        self.cross_folder_check = ttk.Checkbutton(seq_row, text="跨文件夹连续编号", variable=self.cross_folder)
+        self.cross_folder_check.pack(side=tk.LEFT)
 
+        # 模式二：识别集数
         self.ep_radio = ttk.Radiobutton(
-            mode_frame,
-            text="识别集数",
-            variable=self.mode,
-            value="episode",
-            command=self._on_mode_changed,
+            mode_frame, text="识别集数", variable=self.mode, value="episode", command=self._on_mode_changed
         )
-        self.ep_radio.grid(row=1, column=0, sticky="w", padx=(0, 16), pady=3)
-        ttk.Label(mode_frame, text="剧名：").grid(row=1, column=1, sticky="e")
-        self.title_entry = ttk.Entry(mode_frame, textvariable=self.title_text, width=26)
-        self.title_entry.grid(row=1, column=2, sticky="w", padx=(0, 14))
+        self.ep_radio.grid(row=2, column=0, sticky="w")
+        ttk.Label(mode_frame, text="文件名里已有集数（第1集 / 01），按集数来命名", style="Muted.TLabel").grid(
+            row=2, column=1, sticky="w", padx=(8, 0)
+        )
+        ep_row = ttk.Frame(mode_frame)
+        ep_row.grid(row=3, column=0, columnspan=2, sticky="w", padx=(24, 0), pady=(2, 8))
+        ttk.Label(ep_row, text="剧名：").pack(side=tk.LEFT)
+        self.title_entry = ttk.Entry(ep_row, textvariable=self.title_text, width=24)
+        self.title_entry.pack(side=tk.LEFT)
 
-        ttk.Label(mode_frame, text="补零：").grid(row=2, column=1, sticky="e", pady=(6, 0))
-        ttk.Combobox(
-            mode_frame, textvariable=self.number_width, values=["1", "2", "3"], width=6, state="readonly"
-        ).grid(row=2, column=2, sticky="w", padx=(0, 14), pady=(6, 0))
-        ttk.Label(mode_frame, text="模板：").grid(row=2, column=3, sticky="e", pady=(6, 0))
-        self.template_combo = ttk.Combobox(mode_frame, textvariable=self.template, values=SEQUENTIAL_TEMPLATES, width=28)
-        self.template_combo.grid(row=2, column=4, sticky="w", padx=(0, 14), pady=(6, 0))
-        self.keep_ext_check = ttk.Checkbutton(mode_frame, text="保持扩展名大小写", variable=self.keep_extension_case)
-        self.keep_ext_check.grid(row=2, column=5, sticky="w", pady=(6, 0))
+        # 实时“改名后示例”
+        example_row = ttk.Frame(mode_frame)
+        example_row.grid(row=4, column=0, columnspan=2, sticky="w")
+        ttk.Label(example_row, text="改名后示例：").pack(side=tk.LEFT)
+        ttk.Label(example_row, textvariable=self.example_text, style="Example.TLabel").pack(side=tk.LEFT)
 
-        action_frame = ttk.Frame(outer)
-        action_frame.pack(fill=tk.X, pady=(10, 0))
-        self._add_action_button(action_frame, "生成预览", self._preview)
-        self.execute_button = ttk.Button(action_frame, text="确认执行改名", command=self._execute, state=tk.DISABLED)
+        # 高级设置（默认折叠）
+        self.advanced_toggle = ttk.Label(
+            mode_frame, text="▸ 高级设置（命名格式、序号位数、扩展名）", style="Toggle.TLabel", cursor="hand2"
+        )
+        self.advanced_toggle.grid(row=5, column=0, columnspan=2, sticky="w", pady=(8, 0))
+        self.advanced_toggle.bind("<Button-1>", lambda e: self._toggle_advanced())
+
+        self.advanced_frame = ttk.Frame(mode_frame)
+        self.advanced_frame.grid(row=6, column=0, columnspan=2, sticky="w", padx=(24, 0), pady=(4, 0))
+        ttk.Label(self.advanced_frame, text="命名格式：").grid(row=0, column=0, sticky="e")
+        self.template_combo = ttk.Combobox(self.advanced_frame, textvariable=self.template, values=SEQUENTIAL_TEMPLATES, width=24)
+        self.template_combo.grid(row=0, column=1, sticky="w", padx=(0, 16))
+        ttk.Label(self.advanced_frame, text="序号位数：").grid(row=0, column=2, sticky="e")
+        self.width_combo = ttk.Combobox(
+            self.advanced_frame, textvariable=self.number_width, values=["1", "2", "3"], width=5, state="readonly"
+        )
+        self.width_combo.grid(row=0, column=3, sticky="w", padx=(0, 16))
+        self.keep_ext_check = ttk.Checkbutton(self.advanced_frame, text="保持扩展名大小写", variable=self.keep_extension_case)
+        self.keep_ext_check.grid(row=0, column=4, sticky="w")
+        self.advanced_frame.grid_remove()  # 默认收起
+        self._advanced_visible = False
+
+        guide = ttk.Label(
+            outer,
+            text="操作两步走：先点『生成预览』看效果 → 确认没有红色错误 → 再点『确认执行改名』",
+            style="Guide.TLabel",
+        )
+        guide.pack(fill=tk.X, pady=(10, 0))
+
+        action_frame = ttk.Frame(outer, style="Bg.TFrame")
+        action_frame.pack(fill=tk.X, pady=(4, 0))
+        self._add_action_button(
+            action_frame, "生成预览", self._preview, style="Accent.TButton",
+            tip="扫描文件夹，先看看每个文件会改成什么名字（不会真的改）。",
+        )
+        self.execute_button = ttk.Button(action_frame, text="确认执行改名", command=self._execute, state=tk.DISABLED, style="Accent.TButton")
         self.execute_button.pack(side=tk.LEFT, padx=(8, 0))
         self._busy_buttons.append(self.execute_button)
-        self._add_action_button(action_frame, "清空预览", self._clear_preview, padx=(8, 0))
-        self._add_action_button(action_frame, "撤销最近一次", self._undo_latest, padx=(18, 0))
-        self._add_action_button(action_frame, "选择日志撤销", self._undo_from_file, padx=(8, 0))
-        ttk.Label(action_frame, text="筛选：").pack(side=tk.LEFT, padx=(18, 0))
-        ttk.Combobox(
-            action_frame,
-            textvariable=self.status_filter,
-            values=["全部", "仅错误"],
-            width=8,
-            state="readonly",
-        ).pack(side=tk.LEFT)
-        self.status_filter.trace_add("write", lambda *_: self._render_plans())
-        ttk.Label(action_frame, textvariable=self.status_text).pack(side=tk.RIGHT)
+        Tooltip(self.execute_button, "按预览的结果真正改名。预览没问题（没有红色）时才能点。")
+        self._add_action_button(action_frame, "清空预览", self._clear_preview, padx=(8, 0), tip="清掉下面的预览清单，重新来。")
 
-        self.hint_label = ttk.Label(outer, textvariable=self.hint_text, foreground="#b00020", wraplength=1180, justify=tk.LEFT)
+        self.undo_menubutton = ttk.Menubutton(action_frame, text="撤销")
+        undo_menu = tk.Menu(self.undo_menubutton, tearoff=0)
+        undo_menu.add_command(label="撤销最近一次", command=self._undo_latest)
+        undo_menu.add_command(label="选择日志撤销…", command=self._undo_from_file)
+        self.undo_menubutton.configure(menu=undo_menu)
+        self.undo_menubutton.pack(side=tk.LEFT, padx=(18, 0))
+        self._busy_buttons.append(self.undo_menubutton)
+        Tooltip(self.undo_menubutton, "改错了别慌：撤销最近一次，或挑某条日志撤销，恢复到改名前。")
+
+        self.only_errors_check = ttk.Checkbutton(
+            action_frame, text="只看出错的", variable=self.only_errors, command=self._render_plans, style="Bg.TCheckbutton"
+        )
+        self.only_errors_check.pack(side=tk.LEFT, padx=(18, 0))
+        self._busy_buttons.append(self.only_errors_check)
+        Tooltip(self.only_errors_check, "勾选后只显示有问题（红色）的项，方便排查。")
+
+        ttk.Label(action_frame, textvariable=self.status_text, style="Bg.TLabel").pack(side=tk.RIGHT)
+
+        self.hint_label = ttk.Label(outer, textvariable=self.hint_text, style="Hint.TLabel", wraplength=1180, justify=tk.LEFT)
         self.hint_label.pack(fill=tk.X, pady=(6, 0))
 
-        progress_frame = ttk.Frame(outer)
+        progress_frame = ttk.Frame(outer, style="Bg.TFrame")
         progress_frame.pack(fill=tk.X, pady=(8, 0))
         self.progress = ttk.Progressbar(progress_frame, mode="determinate", maximum=100)
         self.progress.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 8))
-        ttk.Label(progress_frame, textvariable=self.progress_text, width=38).pack(side=tk.RIGHT)
+        ttk.Label(progress_frame, textvariable=self.progress_text, width=38, style="Bg.TLabel").pack(side=tk.RIGHT)
 
-        preview_frame = ttk.LabelFrame(outer, text="3. 预览清单（确认无误后再执行）", padding=10)
+        preview_frame = ttk.LabelFrame(outer, text="③  预览清单（确认无误后再执行）", padding=10, style="Card.TLabelframe")
         preview_frame.pack(fill=tk.BOTH, expand=True, pady=(10, 0))
 
         columns = ("folder", "old_name", "new_name", "old", "new", "episode", "status")
@@ -308,9 +446,9 @@ class VideoRenamerApp(tk.Tk):
         for column in columns:
             self.tree.heading(column, text=self._base_headings[column], command=lambda c=column: self._sort_by(c))
             self.tree.column(column, width=widths[column], anchor="center" if column == "episode" else "w")
-        self.tree.tag_configure("error", foreground="#b00020")
-        self.tree.tag_configure("ok", foreground="#006400")
-        self.tree.tag_configure("hint", foreground="#888888")
+        self.tree.tag_configure("error", foreground=COLOR_ERROR)
+        self.tree.tag_configure("ok", foreground=COLOR_OK)
+        self.tree.tag_configure("hint", foreground=COLOR_MUTED)
         self.tree.bind("<Double-1>", self._on_preview_double_click)
 
         y_scroll = ttk.Scrollbar(preview_frame, orient=tk.VERTICAL, command=self.tree.yview)
@@ -319,13 +457,22 @@ class VideoRenamerApp(tk.Tk):
         self.tree.grid(row=0, column=0, sticky="nsew")
         y_scroll.grid(row=0, column=1, sticky="ns")
         x_scroll.grid(row=1, column=0, sticky="ew")
+        ttk.Label(
+            preview_frame,
+            text="提示：点表头可排序；双击某一行可在资源管理器中定位该文件。",
+            style="Muted.TLabel",
+        ).grid(row=2, column=0, columnspan=2, sticky="w", pady=(6, 0))
         preview_frame.rowconfigure(0, weight=1)
         preview_frame.columnconfigure(0, weight=1)
 
-    def _add_action_button(self, parent, text, command, padx=(0, 6)) -> ttk.Button:
+    def _add_action_button(self, parent, text, command, padx=(0, 6), style=None, tip=None) -> ttk.Button:
         button = ttk.Button(parent, text=text, command=command)
+        if style:
+            button.configure(style=style)
         button.pack(side=tk.LEFT, padx=padx)
         self._busy_buttons.append(button)
+        if tip:
+            Tooltip(button, tip)
         return button
 
     def _attach_tooltips(self) -> None:
@@ -338,8 +485,11 @@ class VideoRenamerApp(tk.Tk):
                 "注意：文件仍各自留在原文件夹，不会合并到一起。"
             ),
             self.title_entry: "配合模板里的 {title} 使用。例如剧名「庆余年」+ 模板 {title}-第{episode}集 → 庆余年-第1集.mp4。",
-            self.template_combo: "{number} 连续编号；{episode} 识别到的集数；{title} 剧名。可下拉选，也可手动输入。",
+            self.template_combo: "命名格式：{number} 连续编号；{episode} 识别到的集数；{title} 剧名。可下拉选，也可手动输入。",
+            self.width_combo: "序号位数（补零）：1→1，2→01，3→001。位数补齐能让文件名按数字大小正确排序。",
             self.keep_ext_check: "默认把扩展名统一成小写（.MP4 → .mp4）；勾选则保留原样。",
+            self.advanced_toggle: "点开可调命名格式、序号位数、扩展名等进阶选项；不懂可以先不管。",
+            self.folder_listbox: "双击可在资源管理器打开该文件夹；右键有更多操作；选中后按 Delete 移除。",
         }
         for widget, text in tips.items():
             Tooltip(widget, text)
@@ -364,6 +514,7 @@ class VideoRenamerApp(tk.Tk):
         self.bind("<Control-Return>", lambda e: self._execute())
         self.bind("<Control-z>", lambda e: self._undo_latest())
         self.bind("<Control-Z>", lambda e: self._undo_latest())
+        self.bind("<F1>", lambda e: self._show_help_dialog())  # 帮助按钮已移除，保留 F1 兜底
         self.folder_listbox.bind("<Delete>", lambda e: self._remove_selected_folders())
         self.folder_listbox.bind("<Double-Button-1>", lambda e: self._open_selected_folder())
         self.folder_listbox.bind("<Button-3>", self._show_folder_menu)
@@ -489,6 +640,7 @@ class VideoRenamerApp(tk.Tk):
 
     def _on_setting_changed(self, *_args) -> None:
         self._invalidate_preview()
+        self._update_example()
 
     def _invalidate_preview(self) -> None:
         if self._busy:
@@ -498,6 +650,52 @@ class VideoRenamerApp(tk.Tk):
         if self.current_plans:
             self.status_text.set("设置已改变，请重新点“生成预览”。")
             self.progress["value"] = 0
+
+    def _toggle_advanced(self) -> None:
+        self._advanced_visible = not self._advanced_visible
+        if self._advanced_visible:
+            self.advanced_frame.grid()
+            self.advanced_toggle.configure(text="▾ 高级设置（命名格式、序号位数、扩展名）")
+        else:
+            self.advanced_frame.grid_remove()
+            self.advanced_toggle.configure(text="▸ 高级设置（命名格式、序号位数、扩展名）")
+
+    def _read_options_safe(self) -> RenameOptions:
+        """读取当前设置但不弹错误框（解析失败回退默认值），用于实时示例。"""
+        try:
+            width = int(self.number_width.get())
+        except ValueError:
+            width = 1
+        if width not in (1, 2, 3):
+            width = 1
+        if self.mode.get() == "sequential":
+            try:
+                start = int(self.start_number.get().strip())
+            except ValueError:
+                start = 1
+            return RenameOptions(
+                mode="sequential",
+                start_number=max(0, start),
+                number_width=width,
+                template=self.template.get(),
+                keep_extension_case=self.keep_extension_case.get(),
+            )
+        template = self.template.get()
+        return RenameOptions(
+            mode="episode",
+            episode_output="title" if "{title}" in template else "episode_only",
+            title=self.title_text.get() or "剧名",
+            number_width=width,
+            template=template,
+            keep_extension_case=self.keep_extension_case.get(),
+        )
+
+    def _update_example(self) -> None:
+        try:
+            names = example_names(self._read_options_safe(), count=3)
+        except Exception:
+            names = []
+        self.example_text.set("、".join(names) if names else "（当前设置无法生成，请检查命名格式）")
 
     def _read_options(self) -> RenameOptions | None:
         mode = self.mode.get()
@@ -574,7 +772,7 @@ class VideoRenamerApp(tk.Tk):
         rows: list[tuple[RenamePlan, object]] = []
         for plan in self.current_plans:
             for item in plan.items:
-                if self.status_filter.get() == "仅错误" and item.ok:
+                if self.only_errors.get() and item.ok:
                     continue
                 rows.append((plan, item))
 
@@ -608,7 +806,7 @@ class VideoRenamerApp(tk.Tk):
         else:
             self.status_text.set("预览存在冲突或错误，请检查红色项目。")
         self.hint_text.set(self._build_hint())
-        self.execute_button.configure(state=tk.NORMAL if can_execute else tk.DISABLED)
+        self.execute_button.configure(state=tk.NORMAL if (can_execute and not self._busy) else tk.DISABLED)
 
     def _build_hint(self) -> str:
         messages: list[str] = []
@@ -639,7 +837,7 @@ class VideoRenamerApp(tk.Tk):
                 "③ 生成预览",
                 "④ 确认执行改名",
                 "",
-                "右上角“使用说明”有详细教程",
+                "按 F1 查看使用说明和快捷键",
             ),
             tags=("hint",),
         )
