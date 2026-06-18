@@ -30,6 +30,7 @@ class EpisodeParserTests(unittest.TestCase):
         self.assertIsNone(parse_episode_number("1080P.mp4"))      # 纯清晰度不是集数
         self.assertIsNone(parse_episode_number("我的剧2024.mp4"))  # 四位年份不当集数
         self.assertIsNone(parse_episode_number("1920x1080.mp4"))  # 分辨率不当集数
+        self.assertIsNone(parse_episode_number("2k.mp4"))         # 纯 2k 不是集数
 
     def test_parses_loosely_embedded_numbers_without_marker(self):
         # 没有“集/话”标记，但带数字：剔除清晰度/编码噪声后取最后一个 1~3 位独立数字。
@@ -41,6 +42,10 @@ class EpisodeParserTests(unittest.TestCase):
             "1080P-6.mp4": 6,
             "超清720-8.mp4": 8,
             "x264-12.mp4": 12,
+            "超清-2k-补帧-7.mp4": 7,
+            "7-超清-2k.mp4": 7,
+            "蓝光4K原盘-12.mp4": 12,
+            "3-超清-60帧.mp4": 3,
         }
         for name, expected in examples.items():
             with self.subTest(name=name):
